@@ -1,3 +1,4 @@
+use std::net::ToSocketAddrs;
 use std::{
     io::{Read, Write},
     net::TcpStream,
@@ -31,6 +32,7 @@ fn main() {
         "mkdir" => mkdir(&flags[2..]),
         "cp" => cp(&flags[2..]),
         "curl" => curl(&flags[2..]),
+        "nslookup" => nslookup(&flags[2..]),
         _ => println!("Unknown flag name: \"{}\"", command_name),
     }
 }
@@ -138,18 +140,45 @@ fn curl(_flags: &[String]) {
             std::process::exit(1);
         }
     }
-
     // write to socket in two functions to show that we can write multiple times
     // even after move
-    let host_header = format!("Host: {}\r\n", address);
-    write_to_stream(&mut stream, "GET / HTTP/1.1\r\n");
+    let method = "GET".to_string();
+    http_request(&method, address);
+}
+
+// function to execute HTTP Request
+fn http_request(method: &str, url: &str) {
+    let mut stream: TcpStream;
+    let result = TcpStream::connect(url);
+    match result {
+        Ok(tcp_stream) => {
+            println!("connected succesfully");
+            stream = tcp_stream
+        }
+        Err(_e) => {
+            println!("failed to connect");
+            std::process::exit(1);
+        }
+    }
+
+    let host_header = format!("Host: {}\r\n", url);
+    let method = format!("{} / HTTP/1.1\r\n", method);
+    write_to_stream(&mut stream, &method);
     write_to_stream(&mut stream, &host_header);
     write_to_stream(&mut stream, "User-Agent: curl/7.64.1\r\n");
     write_to_stream(&mut stream, "Accept: */*\r\n");
     write_to_stream(&mut stream, "\r\n");
 
     // read from socket
-    read_from_stream(&mut stream);
+    let response = read_from_stream(&mut stream);
+    match response {
+        Ok(response) => {
+            println!("response: {}", response);
+        }
+        Err(_e) => {
+            println!("failed to read from socket");
+        }
+    }
 }
 
 fn write_to_stream(stream: &mut TcpStream, message: &str) {
@@ -164,16 +193,40 @@ fn write_to_stream(stream: &mut TcpStream, message: &str) {
     }
 }
 
-fn read_from_stream(stream: &mut TcpStream) {
-    let mut buffer = [0; 1024];
-    let res = stream.read(&mut buffer);
-    match res {
-        Ok(num_bytes) => {
-            println!("successfully read {} bytes from socket", num_bytes);
-            println!("{}", String::from_utf8_lossy(&buffer));
+// function read_from_stream reads from socket and returns the result as a string
+// this reads until the socket is closed
+fn read_from_stream(stream: &mut TcpStream) -> Result<String, std::io::Error> {
+    // vector to store all the bytes read from socket
+    let mut buffer = Vec::new();
+
+    // read from socket
+    let result = stream.read_to_end(&mut buffer);
+
+    // check if read was successful
+    match result {
+        Ok(_num_bytes) => {
+            // convert bytes to string
+            let response = String::from_utf8(buffer).unwrap();
+            Ok(response)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+// nslookup command to resolve domain name to IP address
+fn nslookup(_flags: &[String]) {
+    let domain_name = _flags[0].as_str();
+    // resolve domain name
+    let result = (domain_name, 0).to_socket_addrs();
+    match result {
+        Ok(mut addresses) => {
+            while let Some(address) = addresses.next() {
+                println!("{}", address.ip());
+            }
         }
         Err(_e) => {
-            println!("failed to read from socket")
+            println!("failed to resolve domain name");
+            std::process::exit(1);
         }
     }
 }
