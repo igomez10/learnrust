@@ -4,10 +4,13 @@ use std::{
     net::TcpStream,
 };
 
+use testOOP::testOOP;
+
 // import echo.rs
 mod echo;
 mod ls;
 mod pwd;
+mod testOOP;
 
 fn main() {
     // parse flag name
@@ -33,6 +36,7 @@ fn main() {
         "cp" => cp(&flags[2..]),
         "curl" => curl(&flags[2..]),
         "nslookup" => nslookup(&flags[2..]),
+        "testoop" => testOOP(&flags[2..]),
         _ => println!("Unknown flag name: \"{}\"", command_name),
     }
 }
@@ -86,10 +90,6 @@ fn mkdir(_flags: &[String]) {
     }
 }
 
-// enum enumname {
-
-// }
-
 fn cp(_flags: &[String]) {
     let origin_file = &_flags[0];
     let destination_file = &_flags[1];
@@ -127,21 +127,7 @@ fn cp(_flags: &[String]) {
 }
 
 fn curl(_flags: &[String]) {
-    let mut stream: TcpStream;
     let address = _flags[0].as_str();
-    let result = TcpStream::connect(address);
-    match result {
-        Ok(tcp_stream) => {
-            println!("connected succesfully");
-            stream = tcp_stream
-        }
-        Err(_e) => {
-            println!("failed to connect");
-            std::process::exit(1);
-        }
-    }
-    // write to socket in two functions to show that we can write multiple times
-    // even after move
     let method = "GET".to_string();
     http_request(&method, address);
 }
@@ -151,12 +137,8 @@ fn http_request(method: &str, url: &str) {
     let mut stream: TcpStream;
     let result = TcpStream::connect(url);
     match result {
-        Ok(tcp_stream) => {
-            println!("connected succesfully");
-            stream = tcp_stream
-        }
+        Ok(tcp_stream) => stream = tcp_stream,
         Err(_e) => {
-            println!("failed to connect");
             std::process::exit(1);
         }
     }
@@ -169,11 +151,12 @@ fn http_request(method: &str, url: &str) {
     write_to_stream(&mut stream, "Accept: */*\r\n");
     write_to_stream(&mut stream, "\r\n");
 
+    println!();
     // read from socket
     let response = read_from_stream(&mut stream);
     match response {
         Ok(response) => {
-            println!("response: {}", response);
+            println!("{}", response);
         }
         Err(_e) => {
             println!("failed to read from socket");
