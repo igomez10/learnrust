@@ -1,25 +1,25 @@
+mod api_create_user;
+mod echo;
+mod ls;
+mod pwd;
+mod test_oop;
+
+use std::error::Error;
 use std::net::ToSocketAddrs;
 use std::{
     io::{Read, Write},
     net::TcpStream,
 };
 
-use testOOP::testOOP;
-
-// import echo.rs
-mod echo;
-mod ls;
-mod pwd;
-mod testOOP;
-
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     // parse flag name
     let flags: Vec<String> = std::env::args().collect();
 
     // if flags is empty then return
     if flags.len() < 2 {
         println!("No flag name");
-        return;
+        return Ok(());
     }
 
     let command_name = flags[1].as_str();
@@ -36,11 +36,12 @@ fn main() {
         "cp" => cp(&flags[2..]),
         "curl" => curl(&flags[2..]),
         "nslookup" => nslookup(&flags[2..]),
-        "testoop" => testOOP(&flags[2..]),
+        "test_oop" => test_oop::test_oop(&flags[2..]),
+        "create_user" => api_create_user::e2e_user_lifecycle(&flags[2..]).await?,
         _ => println!("Unknown flag name: \"{}\"", command_name),
     }
+    Ok(())
 }
-
 // function whoami will return the current user running the command
 fn whooami() {
     let user = std::env::var("USER").unwrap();
